@@ -173,11 +173,15 @@ class Context:
 
         def on_request_failed(request):
             failure = request.failure
+            # In Playwright, request.failure is a string (the error message) or None
+            failure_reason = failure if isinstance(failure, str) else (
+                failure.error_text if hasattr(failure, 'error_text') else str(failure) if failure else "Unknown"
+            )
             self.network_requests.append(NetworkRequest(
                 url=request.url,
                 method=request.method,
                 failed=True,
-                failure_reason=failure.error_text if failure else "Unknown",
+                failure_reason=failure_reason,
             ))
 
         page.on("console", on_console)

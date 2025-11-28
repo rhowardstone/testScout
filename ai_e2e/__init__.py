@@ -84,6 +84,14 @@ from .assertions import (
     wait_for_navigation,
     RetryConfig,
 )
+from .explorer import (
+    Explorer,
+    create_explorer,
+    ExplorationReport,
+    ExplorationState,
+    Bug,
+    BugSeverity,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -116,4 +124,11 @@ __all__ = [
     "wait_for_element",
     "wait_for_navigation",
     "RetryConfig",
+    # Explorer (Autonomous QA)
+    "Explorer",
+    "create_explorer",
+    "ExplorationReport",
+    "ExplorationState",
+    "Bug",
+    "BugSeverity",
 ]

@@ -337,6 +337,9 @@ Return JSON:
         max_actions: int = 50,
         max_time: float = 300,
         max_depth: int = 5,
+        wait_for_selector: Optional[str] = None,
+        wait_timeout: float = 15.0,
+        app_ready_check: Optional[str] = None,
     ) -> ExplorationReport:
         """
         Autonomously explore the application starting from a URL.
@@ -346,6 +349,10 @@ Return JSON:
             max_actions: Maximum number of actions to take
             max_time: Maximum time in seconds
             max_depth: How many pages deep to go from start
+            wait_for_selector: CSS selector to wait for before starting (e.g., "#root", ".app-loaded")
+            wait_timeout: How long to wait for page/selector in seconds
+            app_ready_check: JavaScript expression that returns true when app is ready
+                            (e.g., 'document.querySelector("#root")?.innerHTML?.length > 100')
 
         Returns:
             ExplorationReport with all findings
@@ -355,9 +362,51 @@ Return JSON:
         self.state.start_url = start_url
         self.report = ExplorationReport(start_url=start_url)
 
-        # Navigate to start
-        self.page.goto(start_url)
-        time.sleep(1)  # Let page settle
+        # Navigate to start with network idle wait
+        try:
+            self.page.goto(start_url, wait_until='networkidle', timeout=int(wait_timeout * 1000))
+        except Exception as e:
+            self.report.ai_observations.append(f"Navigation warning: {str(e)[:100]}")
+            # Try simpler navigation
+            try:
+                self.page.goto(start_url, timeout=int(wait_timeout * 1000))
+            except Exception as e2:
+                self.report.add_bug(Bug(
+                    severity=BugSeverity.CRITICAL,
+                    title="Failed to load page",
+                    description=f"Could not navigate to {start_url}: {str(e2)[:200]}",
+                    reproduction_steps=[f"Navigate to {start_url}"],
+                    url=start_url,
+                ))
+                return self.report
+
+        # Wait for specific selector if provided (for SPA frameworks)
+        if wait_for_selector:
+            try:
+                self.page.wait_for_selector(wait_for_selector, timeout=int(wait_timeout * 1000))
+            except Exception as e:
+                self.report.ai_observations.append(
+                    f"Selector '{wait_for_selector}' not found within {wait_timeout}s - app may not have loaded"
+                )
+
+        # Wait for app ready check (JavaScript condition)
+        if app_ready_check:
+            try:
+                self.page.wait_for_function(app_ready_check, timeout=int(wait_timeout * 1000))
+            except Exception as e:
+                self.report.ai_observations.append(
+                    f"App ready check failed: {app_ready_check[:50]}... - app may not have initialized"
+                )
+
+        # Additional settle time for JavaScript frameworks
+        time.sleep(2)
+
+        # Pre-flight blank page detection
+        blank_page_issue = self._detect_blank_page()
+        if blank_page_issue:
+            self.report.add_bug(blank_page_issue)
+            # Still continue exploring to capture any console errors
+
         self.state.visited_urls.add(start_url)
         self.report.pages_visited = 1
 
@@ -414,6 +463,94 @@ Return JSON:
 
         self.report.duration_seconds = time.time() - start_time
         return self.report
+
+    def _detect_blank_page(self) -> Optional[Bug]:
+        """
+        Detect if the page is blank/empty (JavaScript didn't execute).
+
+        This catches common issues like:
+        - React/Vue/Angular apps that failed to hydrate
+        - JavaScript errors that prevented rendering
+        - Headless browser compatibility issues
+
+        Returns a Bug if blank page detected, None otherwise.
+        """
+        try:
+            # Check multiple indicators of a blank page
+            checks = []
+
+            # Check 1: Body has minimal content
+            body_length = self.page.evaluate('document.body?.innerHTML?.length || 0')
+            checks.append(('body_content', body_length > 100))
+
+            # Check 2: Check for common SPA root elements with content
+            root_selectors = ['#root', '#app', '#__next', '.app', '[data-reactroot]']
+            has_spa_content = False
+            for selector in root_selectors:
+                try:
+                    content_length = self.page.evaluate(
+                        f'document.querySelector("{selector}")?.innerHTML?.length || 0'
+                    )
+                    if content_length > 50:
+                        has_spa_content = True
+                        break
+                except:
+                    pass
+            checks.append(('spa_root_content', has_spa_content))
+
+            # Check 3: Page has visible text content
+            visible_text_length = self.page.evaluate(
+                'document.body?.innerText?.trim()?.length || 0'
+            )
+            checks.append(('visible_text', visible_text_length > 20))
+
+            # Check 4: Page has interactive elements
+            interactive_count = self.page.evaluate('''
+                document.querySelectorAll('button, a, input, select, [role="button"]').length
+            ''')
+            checks.append(('interactive_elements', interactive_count > 0))
+
+            # If most checks fail, it's likely a blank page
+            passed = sum(1 for _, result in checks if result)
+            total = len(checks)
+
+            if passed <= 1:  # Only 0-1 checks passed = definitely blank
+                # Gather diagnostic info
+                diagnostics = []
+                for name, result in checks:
+                    diagnostics.append(f"{name}: {'PASS' if result else 'FAIL'}")
+
+                # Check for console errors that might explain why
+                console_errors = list(self.context.errors[-5:]) if self.context.errors else []
+
+                description = (
+                    f"The page appears to be blank or failed to render. "
+                    f"This usually means JavaScript didn't execute properly. "
+                    f"Diagnostics: {', '.join(diagnostics)}. "
+                    f"Possible causes: JS errors, missing dependencies, CORS issues, "
+                    f"or headless browser compatibility problems."
+                )
+
+                return Bug(
+                    severity=BugSeverity.CRITICAL,
+                    title="Blank page - application failed to render",
+                    description=description,
+                    reproduction_steps=[f"Navigate to {self.page.url}"],
+                    url=self.page.url,
+                    console_errors=console_errors,
+                )
+
+            return None
+
+        except Exception as e:
+            # If we can't even check, something is very wrong
+            return Bug(
+                severity=BugSeverity.CRITICAL,
+                title="Page unresponsive",
+                description=f"Could not inspect page state: {str(e)[:200]}",
+                reproduction_steps=[f"Navigate to {self.page.url}"],
+                url=self.page.url,
+            )
 
     def _check_for_bugs(self):
         """Check current page state for bugs."""

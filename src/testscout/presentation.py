@@ -217,11 +217,11 @@ def _generate_html(
         bugs = decision.get("bugs_found", [])
         bugs_html = ""
         if bugs:
-            bug_items = "".join(
-                f"<li class='bug bug-{b.get(\"severity\", \"info\")}'>"
-                f"<strong>[{b.get('severity', 'info').upper()}]</strong> {b.get('title', '')}</li>"
-                for b in bugs
-            )
+            bug_items = ""
+            for b in bugs:
+                sev = b.get('severity', 'info')
+                title = b.get('title', '')
+                bug_items += f"<li class='bug bug-{sev}'><strong>[{sev.upper()}]</strong> {title}</li>"
             bugs_html = f"<div class='bugs'><strong>Bugs Found:</strong><ul>{bug_items}</ul></div>"
 
         # Screenshot (prefer marked)

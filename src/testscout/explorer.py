@@ -707,12 +707,12 @@ Return JSON:
                 if elements:
                     for el in elements.elements:
                         visible_elements.append({
-                            "id": el.id,
+                            "ai_id": el.ai_id,
                             "tag": el.tag,
                             "text": el.text[:100] if el.text else "",
-                            "role": el.role,
-                            "visible": el.visible,
-                            "selector": el.selector() if hasattr(el, "selector") else None,
+                            "type": el.element_type.value if el.element_type else "unknown",
+                            "visible": el.is_visible,
+                            "aria_label": el.aria_label if el.aria_label else None,
                         })
 
                 self.audit.start_action(

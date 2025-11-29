@@ -1,12 +1,13 @@
 """Tests for the Context module."""
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e.context import Context, ConsoleLog, LogLevel, AIVerification
+from testscout.context import AIVerification, ConsoleLog, Context, LogLevel
 
 
 class TestContext:
@@ -41,7 +42,9 @@ class TestContext:
         assert not ctx.has_critical_errors()
 
         # Critical error
-        ctx.console_logs.append(ConsoleLog(level=LogLevel.ERROR, text="Uncaught ReferenceError: x is not defined"))
+        ctx.console_logs.append(
+            ConsoleLog(level=LogLevel.ERROR, text="Uncaught ReferenceError: x is not defined")
+        )
         assert ctx.has_critical_errors()
 
     def test_critical_error_patterns(self):
@@ -60,25 +63,31 @@ class TestContext:
             ctx = Context()
             ctx.console_logs.append(ConsoleLog(level=LogLevel.ERROR, text=error_text))
             result = ctx.has_critical_errors()
-            assert result == should_be_critical, f"'{error_text}' should {'be' if should_be_critical else 'not be'} critical"
+            assert (
+                result == should_be_critical
+            ), f"'{error_text}' should {'be' if should_be_critical else 'not be'} critical"
 
     def test_ai_verification_recording(self):
         """Should record AI verification results."""
         ctx = Context()
 
-        ctx.add_ai_verification(AIVerification(
-            action_type="assert",
-            description="Page shows login form",
-            result=True,
-            reason="Login form visible",
-        ))
+        ctx.add_ai_verification(
+            AIVerification(
+                action_type="assert",
+                description="Page shows login form",
+                result=True,
+                reason="Login form visible",
+            )
+        )
 
-        ctx.add_ai_verification(AIVerification(
-            action_type="action",
-            description="Click submit",
-            result=False,
-            reason="Button not found",
-        ))
+        ctx.add_ai_verification(
+            AIVerification(
+                action_type="action",
+                description="Click submit",
+                result=False,
+                reason="Button not found",
+            )
+        )
 
         summary = ctx.summary()
         assert summary["ai_verifications"] == 2
@@ -105,11 +114,13 @@ class TestContext:
         ctx.console_logs.append(ConsoleLog(level=LogLevel.ERROR, text="Test error"))
         ctx.console_logs.append(ConsoleLog(level=LogLevel.WARNING, text="Test warning"))
         ctx.page_errors.append("Uncaught exception")
-        ctx.add_ai_verification(AIVerification(
-            action_type="assert",
-            description="Page loads correctly",
-            result=True,
-        ))
+        ctx.add_ai_verification(
+            AIVerification(
+                action_type="assert",
+                description="Page loads correctly",
+                result=True,
+            )
+        )
 
         report = ctx.generate_report()
 

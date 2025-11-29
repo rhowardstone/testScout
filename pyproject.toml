@@ -5,34 +5,48 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "testscout"
 version = "0.1.0"
-description = "AI-Powered E2E Testing Framework - Hybrid DOM + Vision approach"
+description = "AI-Powered E2E Testing Framework - Test web apps with natural language using AI vision"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 authors = [
-    {name = "Your Name", email = "you@example.com"}
+    {name = "testScout Contributors", email = "contact@testscout.dev"}
+]
+maintainers = [
+    {name = "testScout Contributors", email = "contact@testscout.dev"}
 ]
 keywords = [
     "testing",
     "e2e",
+    "end-to-end",
     "playwright",
     "ai",
     "vision",
     "automation",
     "gemini",
     "openai",
+    "set-of-marks",
+    "visual-testing",
+    "qa",
+    "autonomous-testing",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 
 dependencies = [
@@ -53,19 +67,38 @@ all = [
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
-    "black",
-    "ruff",
-    "mypy",
+    "pytest-cov>=4.0.0",
+    "pytest-playwright>=0.4.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+    "build>=0.10.0",
+    "twine>=4.0.0",
 ]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.24.0",
+]
+
+[project.scripts]
+testscout = "testscout.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/rhowardstone/testScout"
 Repository = "https://github.com/rhowardstone/testScout"
 Issues = "https://github.com/rhowardstone/testScout/issues"
+Discussions = "https://github.com/rhowardstone/testScout/discussions"
+Documentation = "https://github.com/rhowardstone/testScout/tree/main/docs"
+Changelog = "https://github.com/rhowardstone/testScout/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["ai_e2e*"]
+where = ["src"]
+include = ["testscout*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+testscout = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -79,8 +112,10 @@ target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]
-ignore = ["E501"]
+ignore = ["E501", "E722"]
 
 [tool.mypy]
 python_version = "3.9"

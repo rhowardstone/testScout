@@ -29,7 +29,7 @@ from playwright.sync_api import sync_playwright
 # Add package to path if running directly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e import Scout, Context, VisualAssertions
+from testscout import Scout, Context, VisualAssertions
 
 # Configuration via environment variables
 BASE_URL = os.environ.get("TEST_URL", "http://localhost:8888")
@@ -138,9 +138,7 @@ def main():
 
                 # Click submit
                 submit_btn = page.query_selector(
-                    'button[type="submit"], '
-                    'button:has-text("Sign In"), '
-                    'button:has-text("Login")'
+                    'button[type="submit"], button:has-text("Sign In"), button:has-text("Login")'
                 )
                 if submit_btn:
                     submit_btn.click()
@@ -167,7 +165,7 @@ def main():
             main_visible = ai_call(
                 scout.verify,
                 "The main application content should be visible (not an error page or login screen)",
-                timeout=15
+                timeout=15,
             )
             results.add("Main Content Visible", main_visible, "AI verified")
 
@@ -181,8 +179,7 @@ def main():
             # AI page analysis
             print("Analyzing page...")
             analysis = ai_call(
-                scout.query,
-                "What are the main sections or features visible on this page?"
+                scout.query, "What are the main sections or features visible on this page?"
             )
             results.add("Page Analysis", len(analysis) > 20, "Got analysis")
             print(f"  {analysis[:100]}...")
@@ -198,17 +195,13 @@ def main():
             # Try to click on any navigation element
             print("Testing navigation...")
             nav_clicked = ai_call(
-                scout.action,
-                "Click on any navigation tab, menu item, or sidebar link",
-                retry=1
+                scout.action, "Click on any navigation tab, menu item, or sidebar link", retry=1
             )
 
             if nav_clicked:
                 page.wait_for_timeout(1500)
                 nav_worked = ai_call(
-                    scout.verify,
-                    "A different view or content should now be visible",
-                    timeout=10
+                    scout.verify, "A different view or content should now be visible", timeout=10
                 )
                 results.add("Navigation Works", nav_worked, "AI verified")
 
@@ -231,7 +224,7 @@ def main():
             no_visual_errors = ai_call(
                 scout.verify,
                 "The page should not show any error messages, broken layouts, or crash screens",
-                timeout=10
+                timeout=10,
             )
             results.add("No Visual Errors", no_visual_errors, "AI verified")
 
@@ -274,6 +267,7 @@ def main():
         except Exception as e:
             print(f"\nTEST CRASHED: {e}")
             import traceback
+
             traceback.print_exc()
             return 1
 

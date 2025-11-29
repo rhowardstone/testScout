@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright
 # Add parent to path for local development
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e import Explorer, create_explorer, BugSeverity
+from testscout import Explorer, create_explorer, BugSeverity
 
 
 def main():
@@ -50,9 +50,9 @@ def main():
 
         report = explorer.explore(
             start_url=url,
-            max_actions=50,      # Stop after 50 actions
-            max_time=300,        # Or after 5 minutes
-            max_depth=5,         # Don't go too deep
+            max_actions=50,  # Stop after 50 actions
+            max_time=300,  # Or after 5 minutes
+            max_depth=5,  # Don't go too deep
         )
 
         browser.close()

@@ -143,7 +143,7 @@ def _load_action(action_dir: Path) -> Optional[Dict[str, Any]]:
     if ai_response_path.exists():
         with open(ai_response_path) as f:
             ai_response = json.load(f)
-            parsed = ai_response.get("parsed", {})
+            parsed = ai_response.get("parsed") or {}  # Handle None case
             if action_data["decision"]:
                 action_data["decision"]["observations"] = parsed.get("observations", [])
                 action_data["decision"]["bugs_found"] = parsed.get("bugs_found", [])
@@ -219,8 +219,8 @@ def _generate_html(
 
     # Action slides
     for i, action in enumerate(actions):
-        decision = action.get("decision", {})
-        next_action = decision.get("next_action", {})
+        decision = action.get("decision") or {}
+        next_action = decision.get("next_action") or {}
 
         action_type = next_action.get("action", "unknown")
         reason = next_action.get("reason", "")

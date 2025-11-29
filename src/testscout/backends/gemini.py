@@ -26,13 +26,13 @@ class GeminiBackend(VisionBackend):
         ```
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-2.5-pro"):
         """
         Initialize Gemini backend.
 
         Args:
             api_key: Google Generative AI API key
-            model: Gemini model name (default: gemini-2.0-flash)
+            model: Gemini model name (default: gemini-2.5-pro)
         """
         import google.generativeai as genai
 

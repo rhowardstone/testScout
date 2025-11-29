@@ -82,7 +82,7 @@ class Scout:
             self.backend = backend
         elif api_key:
             if backend_type == "gemini":
-                self.backend = GeminiBackend(api_key, model or "gemini-2.0-flash")
+                self.backend = GeminiBackend(api_key, model or "gemini-2.5-pro")
             elif backend_type == "openai":
                 self.backend = OpenAIBackend(api_key, model or "gpt-4o")
             else:

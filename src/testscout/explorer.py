@@ -794,11 +794,18 @@ Return JSON:
 
                 except json.JSONDecodeError as e:
                     last_error = f"JSON parse error (attempt {attempt + 1}/{max_retries}): {str(e)[:50]}"
-                    time.sleep(0.5)  # Brief pause before retry
+                    time.sleep(1)  # Brief pause before retry
                     continue
                 except Exception as e:
-                    last_error = f"AI error (attempt {attempt + 1}/{max_retries}): {str(e)[:50]}"
-                    time.sleep(0.5)
+                    error_str = str(e)
+                    last_error = f"AI error (attempt {attempt + 1}/{max_retries}): {error_str[:50]}"
+                    # Check for rate limit (429) error - wait longer
+                    if "429" in error_str or "quota" in error_str.lower() or "rate" in error_str.lower():
+                        wait_time = 35  # Wait 35 seconds for rate limit reset
+                        print(f"Rate limit hit, waiting {wait_time}s before retry...")
+                        time.sleep(wait_time)
+                    else:
+                        time.sleep(1)
                     continue
 
             # All retries failed

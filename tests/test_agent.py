@@ -7,13 +7,15 @@ from typing import Dict, Any, Optional, List
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from testscout.agent import (
+from testscout.agent import Scout
+from testscout.backends import (
     VisionBackend,
     ActionPlan,
     ActionType,
     AssertionResult,
 )
 from testscout.discovery import PageElements
+from testscout.context import Context
 
 
 class MockVisionBackend(VisionBackend):

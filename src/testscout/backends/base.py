@@ -7,12 +7,13 @@ Backends can be swapped out to use different AI providers (Gemini, OpenAI, Claud
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, List
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class ActionType(Enum):
     """Types of actions the AI can plan."""
+
     CLICK = "click"
     FILL = "fill"
     TYPE = "type"
@@ -26,6 +27,7 @@ class ActionType(Enum):
 @dataclass
 class ActionPlan:
     """Structured action plan from AI."""
+
     action: ActionType
     element_id: Optional[int] = None  # data-testscout-id
     text: Optional[str] = None  # For fill/type/select
@@ -57,6 +59,7 @@ class ActionPlan:
 @dataclass
 class AssertionResult:
     """Result of an AI assertion."""
+
     passed: bool
     reason: str
     confidence: float = 1.0
@@ -111,7 +114,7 @@ class VisionBackend(ABC):
         self,
         assertion: str,
         screenshot_b64: str,
-        elements = None,  # Optional[PageElements]
+        elements=None,  # Optional[PageElements]
     ) -> AssertionResult:
         """
         Verify an assertion about the current page state.
@@ -131,7 +134,7 @@ class VisionBackend(ABC):
         self,
         question: str,
         screenshot_b64: str,
-        elements = None,  # Optional[PageElements]
+        elements=None,  # Optional[PageElements]
     ) -> str:
         """
         Ask a question about the current page.

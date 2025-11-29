@@ -50,9 +50,9 @@ def main():
 
         report = explorer.explore(
             start_url=url,
-            max_actions=50,      # Stop after 50 actions
-            max_time=300,        # Or after 5 minutes
-            max_depth=5,         # Don't go too deep
+            max_actions=50,  # Stop after 50 actions
+            max_time=300,  # Or after 5 minutes
+            max_depth=5,  # Don't go too deep
         )
 
         browser.close()

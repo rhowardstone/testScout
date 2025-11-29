@@ -26,10 +26,10 @@ Example:
 """
 
 from .base import (
-    VisionBackend,
     ActionPlan,
-    AssertionResult,
     ActionType,
+    AssertionResult,
+    VisionBackend,
 )
 from .gemini import GeminiBackend
 from .openai import OpenAIBackend

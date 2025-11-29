@@ -1,15 +1,16 @@
 """Tests for the Discovery module."""
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from testscout.discovery import (
     DiscoveredElement,
-    PageElements,
     ElementType,
+    PageElements,
 )
 
 
@@ -71,72 +72,74 @@ class TestPageElements:
     @pytest.fixture
     def sample_elements(self):
         """Create sample elements for testing."""
-        return PageElements(elements=[
-            DiscoveredElement(
-                ai_id=0,
-                element_type=ElementType.BUTTON,
-                tag="button",
-                text="Login",
-                placeholder="",
-                aria_label="",
-                name="",
-                id="login-btn",
-                classes=[],
-                href=None,
-                src=None,
-                is_visible=True,
-                is_enabled=True,
-                bounding_box={},
-            ),
-            DiscoveredElement(
-                ai_id=1,
-                element_type=ElementType.INPUT,
-                tag="input",
-                text="",
-                placeholder="Email",
-                aria_label="",
-                name="email",
-                id="",
-                classes=[],
-                href=None,
-                src=None,
-                is_visible=True,
-                is_enabled=True,
-                bounding_box={},
-            ),
-            DiscoveredElement(
-                ai_id=2,
-                element_type=ElementType.INPUT,
-                tag="input",
-                text="",
-                placeholder="Password",
-                aria_label="",
-                name="password",
-                id="",
-                classes=[],
-                href=None,
-                src=None,
-                is_visible=True,
-                is_enabled=True,
-                bounding_box={},
-            ),
-            DiscoveredElement(
-                ai_id=3,
-                element_type=ElementType.LINK,
-                tag="a",
-                text="Forgot Password?",
-                placeholder="",
-                aria_label="",
-                name="",
-                id="",
-                classes=[],
-                href="/forgot",
-                src=None,
-                is_visible=True,
-                is_enabled=True,
-                bounding_box={},
-            ),
-        ])
+        return PageElements(
+            elements=[
+                DiscoveredElement(
+                    ai_id=0,
+                    element_type=ElementType.BUTTON,
+                    tag="button",
+                    text="Login",
+                    placeholder="",
+                    aria_label="",
+                    name="",
+                    id="login-btn",
+                    classes=[],
+                    href=None,
+                    src=None,
+                    is_visible=True,
+                    is_enabled=True,
+                    bounding_box={},
+                ),
+                DiscoveredElement(
+                    ai_id=1,
+                    element_type=ElementType.INPUT,
+                    tag="input",
+                    text="",
+                    placeholder="Email",
+                    aria_label="",
+                    name="email",
+                    id="",
+                    classes=[],
+                    href=None,
+                    src=None,
+                    is_visible=True,
+                    is_enabled=True,
+                    bounding_box={},
+                ),
+                DiscoveredElement(
+                    ai_id=2,
+                    element_type=ElementType.INPUT,
+                    tag="input",
+                    text="",
+                    placeholder="Password",
+                    aria_label="",
+                    name="password",
+                    id="",
+                    classes=[],
+                    href=None,
+                    src=None,
+                    is_visible=True,
+                    is_enabled=True,
+                    bounding_box={},
+                ),
+                DiscoveredElement(
+                    ai_id=3,
+                    element_type=ElementType.LINK,
+                    tag="a",
+                    text="Forgot Password?",
+                    placeholder="",
+                    aria_label="",
+                    name="",
+                    id="",
+                    classes=[],
+                    href="/forgot",
+                    src=None,
+                    is_visible=True,
+                    is_enabled=True,
+                    bounding_box={},
+                ),
+            ]
+        )
 
     def test_find_by_id(self, sample_elements):
         """Should find element by ai_id."""
@@ -154,7 +157,9 @@ class TestPageElements:
         assert results[0].ai_id == 0
 
         results = sample_elements.find_by_text("Password", partial=True)
-        assert len(results) == 1  # Only link text matches (find_by_text searches text, not placeholder)
+        assert (
+            len(results) == 1
+        )  # Only link text matches (find_by_text searches text, not placeholder)
 
     def test_find_by_text_exact(self, sample_elements):
         """Should find elements by exact text match."""
@@ -199,8 +204,17 @@ class TestElementType:
 
     def test_all_types_exist(self):
         """Should have all expected element types."""
-        expected = ["button", "link", "input", "select", "textarea",
-                   "checkbox", "radio", "image", "custom"]
+        expected = [
+            "button",
+            "link",
+            "input",
+            "select",
+            "textarea",
+            "checkbox",
+            "radio",
+            "image",
+            "custom",
+        ]
 
         for type_name in expected:
             assert ElementType(type_name) is not None

@@ -5,9 +5,9 @@ Supports GPT-4o and other OpenAI vision models for visual AI testing.
 """
 
 import json
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
-from .base import VisionBackend, ActionPlan, AssertionResult, ActionType
+from .base import ActionPlan, ActionType, AssertionResult, VisionBackend
 
 
 class OpenAIBackend(VisionBackend):
@@ -35,6 +35,7 @@ class OpenAIBackend(VisionBackend):
             model: OpenAI model name (default: gpt-4o)
         """
         from openai import OpenAI
+
         self.client = OpenAI(api_key=api_key)
         self.model = model
 
@@ -42,18 +43,20 @@ class OpenAIBackend(VisionBackend):
         """Make a vision API call to OpenAI."""
         response = self.client.chat.completions.create(
             model=self.model,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{screenshot_b64}",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{screenshot_b64}",
+                            },
                         },
-                    },
-                ],
-            }],
+                    ],
+                }
+            ],
             max_tokens=1000,
         )
         return response.choices[0].message.content
@@ -90,7 +93,7 @@ Return ONLY JSON:
         self,
         assertion: str,
         screenshot_b64: str,
-        elements = None,
+        elements=None,
     ) -> AssertionResult:
         """Verify an assertion using GPT-4V vision."""
         prompt = f"""Verify this assertion about the screenshot:
@@ -112,7 +115,7 @@ Return ONLY JSON: {{"passed": true|false, "reason": "<brief>", "confidence": <0-
         self,
         question: str,
         screenshot_b64: str,
-        elements = None,
+        elements=None,
     ) -> str:
         """Ask GPT-4V a question about the page."""
         prompt = f"Look at this screenshot and answer: {question}"

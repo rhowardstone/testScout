@@ -1,21 +1,20 @@
 """Tests for the Agent module with mock backend."""
 
-import pytest
-import sys
 import os
-from typing import Dict, Any, Optional, List
+import sys
+from typing import Any, Dict, List, Optional
+
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from testscout.agent import Scout
 from testscout.backends import (
-    VisionBackend,
     ActionPlan,
     ActionType,
     AssertionResult,
+    VisionBackend,
 )
 from testscout.discovery import PageElements
-from testscout.context import Context
 
 
 class MockVisionBackend(VisionBackend):
@@ -47,10 +46,12 @@ class MockVisionBackend(VisionBackend):
         screenshot_b64: str,
         elements: PageElements,
     ) -> ActionPlan:
-        self._action_calls.append({
-            "instruction": instruction,
-            "elements_count": len(elements.elements) if elements else 0,
-        })
+        self._action_calls.append(
+            {
+                "instruction": instruction,
+                "elements_count": len(elements.elements) if elements else 0,
+            }
+        )
 
         if self.action_responses:
             return self.action_responses.pop(0)
@@ -224,15 +225,19 @@ class TestMockBackend:
         """Should return queued action responses in order."""
         backend = MockVisionBackend()
 
-        backend.set_action_response(ActionPlan(
-            action=ActionType.CLICK,
-            element_id=1,
-        ))
-        backend.set_action_response(ActionPlan(
-            action=ActionType.FILL,
-            element_id=2,
-            text="test",
-        ))
+        backend.set_action_response(
+            ActionPlan(
+                action=ActionType.CLICK,
+                element_id=1,
+            )
+        )
+        backend.set_action_response(
+            ActionPlan(
+                action=ActionType.FILL,
+                element_id=2,
+                text="test",
+            )
+        )
 
         elements = PageElements(elements=[])
 

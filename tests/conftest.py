@@ -4,22 +4,17 @@ Pytest configuration and shared fixtures for testScout tests.
 Provides utilities for testing with real browsers and AI backends.
 """
 
-import pytest
 import os
 from typing import Generator
-from playwright.sync_api import Page, Browser, sync_playwright
+
+import pytest
+from playwright.sync_api import Page, sync_playwright
 
 
 def pytest_configure(config):
     """Register custom markers."""
-    config.addinivalue_line(
-        "markers",
-        "slow: marks tests as slow (exploration, etc.)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "ai_e2e: marks tests as requiring AI API keys"
-    )
+    config.addinivalue_line("markers", "slow: marks tests as slow (exploration, etc.)")
+    config.addinivalue_line("markers", "ai_e2e: marks tests as requiring AI API keys")
 
 
 @pytest.fixture(scope="session")

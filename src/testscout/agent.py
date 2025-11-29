@@ -15,11 +15,10 @@ Uses structured JSON output for reliable parsing.
 import base64
 import time
 from typing import Optional
-from dataclasses import dataclass
 
+from .backends import ActionPlan, ActionType, GeminiBackend, OpenAIBackend, VisionBackend
+from .context import AIVerification, Context
 from .discovery import ElementDiscoverySync, PageElements
-from .context import Context, AIVerification
-from .backends import VisionBackend, GeminiBackend, OpenAIBackend, ActionPlan, ActionType
 
 
 class Scout:
@@ -148,13 +147,15 @@ class Scout:
             duration_ms = (time.time() - start_time) * 1000
 
             if plan.action == ActionType.NONE:
-                self.context.add_ai_verification(AIVerification(
-                    action_type="action",
-                    description=instruction,
-                    result=False,
-                    reason=plan.reason,
-                    duration_ms=duration_ms,
-                ))
+                self.context.add_ai_verification(
+                    AIVerification(
+                        action_type="action",
+                        description=instruction,
+                        result=False,
+                        reason=plan.reason,
+                        duration_ms=duration_ms,
+                    )
+                )
                 if attempt < retry:
                     time.sleep(0.5)
                     continue
@@ -163,26 +164,30 @@ class Scout:
             # Execute the action
             try:
                 success = self._execute_action(plan, elements, timeout)
-                self.context.add_ai_verification(AIVerification(
-                    action_type="action",
-                    description=instruction,
-                    result=success,
-                    reason=plan.reason,
-                    element_id=plan.element_id,
-                    duration_ms=duration_ms,
-                ))
+                self.context.add_ai_verification(
+                    AIVerification(
+                        action_type="action",
+                        description=instruction,
+                        result=success,
+                        reason=plan.reason,
+                        element_id=plan.element_id,
+                        duration_ms=duration_ms,
+                    )
+                )
                 if success:
                     self._action_count += 1
                     return True
             except Exception as e:
-                self.context.add_ai_verification(AIVerification(
-                    action_type="action",
-                    description=instruction,
-                    result=False,
-                    reason=f"Execution error: {e}",
-                    element_id=plan.element_id,
-                    duration_ms=duration_ms,
-                ))
+                self.context.add_ai_verification(
+                    AIVerification(
+                        action_type="action",
+                        description=instruction,
+                        result=False,
+                        reason=f"Execution error: {e}",
+                        element_id=plan.element_id,
+                        duration_ms=duration_ms,
+                    )
+                )
 
             if attempt < retry:
                 time.sleep(0.5)
@@ -269,9 +274,7 @@ class Scout:
             screenshot_b64 = self._get_screenshot_b64(with_markers=False)
 
             # Check if screenshot changed (skip if identical to last check)
-            screenshot_hash = self.context.get_screenshot_hash(
-                base64.b64decode(screenshot_b64)
-            )
+            screenshot_hash = self.context.get_screenshot_hash(base64.b64decode(screenshot_b64))
 
             elements = self._refresh_elements()
 
@@ -281,27 +284,31 @@ class Scout:
             duration_ms = (time.time() - start_time) * 1000
 
             if result.passed:
-                self.context.add_ai_verification(AIVerification(
-                    action_type="assert",
-                    description=assertion,
-                    result=True,
-                    reason=result.reason,
-                    screenshot_hash=screenshot_hash,
-                    duration_ms=duration_ms,
-                ))
+                self.context.add_ai_verification(
+                    AIVerification(
+                        action_type="assert",
+                        description=assertion,
+                        result=True,
+                        reason=result.reason,
+                        screenshot_hash=screenshot_hash,
+                        duration_ms=duration_ms,
+                    )
+                )
                 return True
 
             # Not passed yet - wait and retry
             time.sleep(poll_interval)
 
         # Timeout - record failure
-        self.context.add_ai_verification(AIVerification(
-            action_type="assert",
-            description=assertion,
-            result=False,
-            reason=result.reason if 'result' in locals() else "Timeout",
-            duration_ms=(time.time() - start_time) * 1000,
-        ))
+        self.context.add_ai_verification(
+            AIVerification(
+                action_type="assert",
+                description=assertion,
+                result=False,
+                reason=result.reason if "result" in locals() else "Timeout",
+                duration_ms=(time.time() - start_time) * 1000,
+            )
+        )
         return False
 
     def query(self, question: str) -> str:

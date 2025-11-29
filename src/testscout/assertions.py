@@ -6,13 +6,14 @@ Provides pytest-friendly assertion syntax.
 """
 
 import time
-from typing import Optional, Callable, Any
 from dataclasses import dataclass
+from typing import Callable, Optional
 
 
 @dataclass
 class RetryConfig:
     """Configuration for retry behavior."""
+
     timeout: float = 10.0  # Total timeout in seconds
     poll_interval: float = 1.0  # Time between retries
     initial_delay: float = 0.0  # Wait before first check
@@ -266,8 +267,8 @@ class AssertionContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.failures:
             raise AssertionError(
-                f"{len(self.failures)} assertion(s) failed:\n" +
-                "\n".join(f"  - {f}" for f in self.failures)
+                f"{len(self.failures)} assertion(s) failed:\n"
+                + "\n".join(f"  - {f}" for f in self.failures)
             )
         return False
 

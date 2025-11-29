@@ -25,30 +25,31 @@ Usage:
 """
 
 import base64
+import hashlib
 import json
 import time
-import hashlib
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List, Set, Tuple
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
-from .agent import Scout, ActionType
-from .context import Context, LogLevel
+from .agent import Scout
+from .context import Context
 
 
 class BugSeverity(Enum):
     CRITICAL = "critical"  # App crash, JS exception, 500 error
-    HIGH = "high"          # Feature doesn't work, broken UI
-    MEDIUM = "medium"      # Console error, slow response
-    LOW = "low"            # Warning, minor UI issue
-    INFO = "info"          # Observation, potential issue
+    HIGH = "high"  # Feature doesn't work, broken UI
+    MEDIUM = "medium"  # Console error, slow response
+    LOW = "low"  # Warning, minor UI issue
+    INFO = "info"  # Observation, potential issue
 
 
 @dataclass
 class Bug:
     """A discovered bug or issue."""
+
     severity: BugSeverity
     title: str
     description: str
@@ -77,6 +78,7 @@ class Bug:
 @dataclass
 class ExplorationState:
     """Tracks the exploration state to avoid loops."""
+
     visited_urls: Set[str] = field(default_factory=set)
     clicked_elements: Set[str] = field(default_factory=set)  # hash of element + url
     page_states: Dict[str, str] = field(default_factory=dict)  # url -> dom_hash
@@ -101,6 +103,7 @@ class ExplorationState:
 @dataclass
 class ExplorationReport:
     """Complete report of an exploration session."""
+
     start_url: str
     bugs: List[Bug] = field(default_factory=list)
     pages_visited: int = 0
@@ -138,7 +141,7 @@ BUGS FOUND: {len(self.bugs)}
         """Generate HTML report."""
         bug_rows = []
         for i, bug in enumerate(self.bugs):
-            steps = "<br>".join(f"{j+1}. {s}" for j, s in enumerate(bug.reproduction_steps))
+            steps = "<br>".join(f"{j + 1}. {s}" for j, s in enumerate(bug.reproduction_steps))
             errors = "<br>".join(bug.console_errors[:5]) if bug.console_errors else "None"
 
             severity_color = {
@@ -149,14 +152,16 @@ BUGS FOUND: {len(self.bugs)}
                 BugSeverity.INFO: "#6b7280",
             }.get(bug.severity, "#6b7280")
 
-            bug_rows.append(f"""
+            bug_rows.append(
+                f"""
             <tr>
                 <td><span style="background:{severity_color};color:white;padding:2px 8px;border-radius:4px">{bug.severity.value.upper()}</span></td>
                 <td><strong>{bug.title}</strong><br><small>{bug.description}</small></td>
                 <td><small>{steps}</small></td>
                 <td><small style="color:#dc2626">{errors}</small></td>
             </tr>
-            """)
+            """
+            )
 
         return f"""
 <!DOCTYPE html>
@@ -213,14 +218,18 @@ BUGS FOUND: {len(self.bugs)}
             {"".join(bug_rows) if bug_rows else "<tr><td colspan='4'>No bugs found! 🎉</td></tr>"}
         </table>
 
-        {f'''
+        {
+            f'''
         <div class="observations">
             <h3>🤖 AI Observations</h3>
             <ul>
                 {"".join(f"<li>{obs}</li>" for obs in self.ai_observations)}
             </ul>
         </div>
-        ''' if self.ai_observations else ""}
+        '''
+            if self.ai_observations
+            else ""
+        }
     </div>
 </body>
 </html>
@@ -236,14 +245,18 @@ BUGS FOUND: {len(self.bugs)}
                 f.write(self.to_html())
         elif filepath.endswith(".json"):
             with open(filepath, "w") as f:
-                json.dump({
-                    "start_url": self.start_url,
-                    "bugs": [b.to_dict() for b in self.bugs],
-                    "pages_visited": self.pages_visited,
-                    "actions_taken": self.actions_taken,
-                    "duration_seconds": self.duration_seconds,
-                    "ai_observations": self.ai_observations,
-                }, f, indent=2)
+                json.dump(
+                    {
+                        "start_url": self.start_url,
+                        "bugs": [b.to_dict() for b in self.bugs],
+                        "pages_visited": self.pages_visited,
+                        "actions_taken": self.actions_taken,
+                        "duration_seconds": self.duration_seconds,
+                        "ai_observations": self.ai_observations,
+                    },
+                    f,
+                    indent=2,
+                )
         else:
             with open(filepath, "w") as f:
                 f.write(self.summary())
@@ -364,27 +377,29 @@ Return JSON:
 
         # Navigate to start with network idle wait
         try:
-            self.page.goto(start_url, wait_until='networkidle', timeout=int(wait_timeout * 1000))
+            self.page.goto(start_url, wait_until="networkidle", timeout=int(wait_timeout * 1000))
         except Exception as e:
             self.report.ai_observations.append(f"Navigation warning: {str(e)[:100]}")
             # Try simpler navigation
             try:
                 self.page.goto(start_url, timeout=int(wait_timeout * 1000))
             except Exception as e2:
-                self.report.add_bug(Bug(
-                    severity=BugSeverity.CRITICAL,
-                    title="Failed to load page",
-                    description=f"Could not navigate to {start_url}: {str(e2)[:200]}",
-                    reproduction_steps=[f"Navigate to {start_url}"],
-                    url=start_url,
-                ))
+                self.report.add_bug(
+                    Bug(
+                        severity=BugSeverity.CRITICAL,
+                        title="Failed to load page",
+                        description=f"Could not navigate to {start_url}: {str(e2)[:200]}",
+                        reproduction_steps=[f"Navigate to {start_url}"],
+                        url=start_url,
+                    )
+                )
                 return self.report
 
         # Wait for specific selector if provided (for SPA frameworks)
         if wait_for_selector:
             try:
                 self.page.wait_for_selector(wait_for_selector, timeout=int(wait_timeout * 1000))
-            except Exception as e:
+            except Exception:
                 self.report.ai_observations.append(
                     f"Selector '{wait_for_selector}' not found within {wait_timeout}s - app may not have loaded"
                 )
@@ -393,7 +408,7 @@ Return JSON:
         if app_ready_check:
             try:
                 self.page.wait_for_function(app_ready_check, timeout=int(wait_timeout * 1000))
-            except Exception as e:
+            except Exception:
                 self.report.ai_observations.append(
                     f"App ready check failed: {app_ready_check[:50]}... - app may not have initialized"
                 )
@@ -480,11 +495,11 @@ Return JSON:
             checks = []
 
             # Check 1: Body has minimal content
-            body_length = self.page.evaluate('document.body?.innerHTML?.length || 0')
-            checks.append(('body_content', body_length > 100))
+            body_length = self.page.evaluate("document.body?.innerHTML?.length || 0")
+            checks.append(("body_content", body_length > 100))
 
             # Check 2: Check for common SPA root elements with content
-            root_selectors = ['#root', '#app', '#__next', '.app', '[data-reactroot]']
+            root_selectors = ["#root", "#app", "#__next", ".app", "[data-reactroot]"]
             has_spa_content = False
             for selector in root_selectors:
                 try:
@@ -494,25 +509,26 @@ Return JSON:
                     if content_length > 50:
                         has_spa_content = True
                         break
-                except:
+                except Exception:
                     pass
-            checks.append(('spa_root_content', has_spa_content))
+            checks.append(("spa_root_content", has_spa_content))
 
             # Check 3: Page has visible text content
             visible_text_length = self.page.evaluate(
-                'document.body?.innerText?.trim()?.length || 0'
+                "document.body?.innerText?.trim()?.length || 0"
             )
-            checks.append(('visible_text', visible_text_length > 20))
+            checks.append(("visible_text", visible_text_length > 20))
 
             # Check 4: Page has interactive elements
-            interactive_count = self.page.evaluate('''
+            interactive_count = self.page.evaluate(
+                """
                 document.querySelectorAll('button, a, input, select, [role="button"]').length
-            ''')
-            checks.append(('interactive_elements', interactive_count > 0))
+            """
+            )
+            checks.append(("interactive_elements", interactive_count > 0))
 
             # If most checks fail, it's likely a blank page
             passed = sum(1 for _, result in checks if result)
-            total = len(checks)
 
             if passed <= 1:  # Only 0-1 checks passed = definitely blank
                 # Gather diagnostic info
@@ -557,35 +573,41 @@ Return JSON:
         # Check context for console errors
         if self.context.has_critical_errors():
             for error in self.context.get_critical_errors():
-                self.report.add_bug(Bug(
-                    severity=BugSeverity.CRITICAL,
-                    title="JavaScript Error",
-                    description=error[:200],
-                    reproduction_steps=list(self.state.action_history[-5:]),
-                    url=self.page.url,
-                    console_errors=[error],
-                ))
+                self.report.add_bug(
+                    Bug(
+                        severity=BugSeverity.CRITICAL,
+                        title="JavaScript Error",
+                        description=error[:200],
+                        reproduction_steps=list(self.state.action_history[-5:]),
+                        url=self.page.url,
+                        console_errors=[error],
+                    )
+                )
 
         # Check for network errors
         for req in self.context.network_errors:
             if req.status == 500:
-                self.report.add_bug(Bug(
-                    severity=BugSeverity.CRITICAL,
-                    title=f"Server Error 500: {req.url[:50]}",
-                    description=f"Backend returned 500 error for {req.method} {req.url}",
-                    reproduction_steps=list(self.state.action_history[-5:]),
-                    url=self.page.url,
-                    network_errors=[f"{req.status} {req.method} {req.url}"],
-                ))
+                self.report.add_bug(
+                    Bug(
+                        severity=BugSeverity.CRITICAL,
+                        title=f"Server Error 500: {req.url[:50]}",
+                        description=f"Backend returned 500 error for {req.method} {req.url}",
+                        reproduction_steps=list(self.state.action_history[-5:]),
+                        url=self.page.url,
+                        network_errors=[f"{req.status} {req.method} {req.url}"],
+                    )
+                )
             elif req.status and req.status >= 400:
-                self.report.add_bug(Bug(
-                    severity=BugSeverity.MEDIUM,
-                    title=f"HTTP Error {req.status}",
-                    description=f"Request failed: {req.method} {req.url}",
-                    reproduction_steps=list(self.state.action_history[-5:]),
-                    url=self.page.url,
-                    network_errors=[f"{req.status} {req.method} {req.url}"],
-                ))
+                self.report.add_bug(
+                    Bug(
+                        severity=BugSeverity.MEDIUM,
+                        title=f"HTTP Error {req.status}",
+                        description=f"Request failed: {req.method} {req.url}",
+                        reproduction_steps=list(self.state.action_history[-5:]),
+                        url=self.page.url,
+                        network_errors=[f"{req.status} {req.method} {req.url}"],
+                    )
+                )
 
     def _get_next_action(self) -> Optional[Dict[str, Any]]:
         """Ask AI what to do next."""
@@ -609,10 +631,12 @@ Return JSON:
             )
 
             # Ask AI
-            response = self.scout.backend.model.generate_content([
-                prompt,
-                {"mime_type": "image/png", "data": screenshot_b64},
-            ])
+            response = self.scout.backend.model.generate_content(
+                [
+                    prompt,
+                    {"mime_type": "image/png", "data": screenshot_b64},
+                ]
+            )
 
             # Parse response
             text = response.text.strip()
@@ -659,13 +683,15 @@ Return JSON:
 
         except Exception as e:
             # Action failed - might be a bug
-            self.report.add_bug(Bug(
-                severity=BugSeverity.MEDIUM,
-                title=f"Action Failed: {action_type}",
-                description=f"Could not {action_type}: {str(e)[:100]}",
-                reproduction_steps=list(self.state.action_history[-5:]) + [reason],
-                url=self.page.url,
-            ))
+            self.report.add_bug(
+                Bug(
+                    severity=BugSeverity.MEDIUM,
+                    title=f"Action Failed: {action_type}",
+                    description=f"Could not {action_type}: {str(e)[:100]}",
+                    reproduction_steps=list(self.state.action_history[-5:]) + [reason],
+                    url=self.page.url,
+                )
+            )
 
         return False
 
@@ -688,15 +714,17 @@ Return JSON:
         except:
             pass
 
-        self.report.add_bug(Bug(
-            severity=severity,
-            title=bug_data.get("title", "Unknown Issue"),
-            description=bug_data.get("description", ""),
-            reproduction_steps=list(self.state.action_history[-5:]),
-            url=self.page.url,
-            screenshot=screenshot,
-            console_errors=list(self.context.errors[-5:]),
-        ))
+        self.report.add_bug(
+            Bug(
+                severity=severity,
+                title=bug_data.get("title", "Unknown Issue"),
+                description=bug_data.get("description", ""),
+                reproduction_steps=list(self.state.action_history[-5:]),
+                url=self.page.url,
+                screenshot=screenshot,
+                console_errors=list(self.context.errors[-5:]),
+            )
+        )
 
 
 def create_explorer(

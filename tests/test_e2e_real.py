@@ -9,16 +9,17 @@ Tests all major features using stable, publicly accessible websites:
 These tests actually run the browser and verify the framework works!
 """
 
-import pytest
 import os
-from playwright.sync_api import sync_playwright, Page, Browser
-from testscout import Scout, Context, VisualAssertions, Explorer, create_scout
 
+import pytest
+from playwright.sync_api import sync_playwright
+
+from testscout import Context, Explorer, Scout, VisualAssertions
 
 # Skip tests if no API key (for CI/CD)
 skip_if_no_api_key = pytest.mark.skipif(
     not os.environ.get("GEMINI_API_KEY") and not os.environ.get("OPENAI_API_KEY"),
-    reason="No AI API key available"
+    reason="No AI API key available",
 )
 
 
@@ -108,7 +109,9 @@ class TestWikipediaInteraction:
         # Note: This might not always work perfectly, but we should try
 
         # Verify no critical errors occurred
-        assert not context.has_critical_errors(), f"Critical errors: {context.get_critical_errors()}"
+        assert (
+            not context.has_critical_errors()
+        ), f"Critical errors: {context.get_critical_errors()}"
 
     @skip_if_no_api_key
     def test_wikipedia_element_discovery(self, scout_with_context):
@@ -292,18 +295,12 @@ class TestEdgeCases:
 class TestBackendSwitching:
     """Test using different AI backends."""
 
-    @pytest.mark.skipif(
-        not os.environ.get("GEMINI_API_KEY"),
-        reason="Requires Gemini API key"
-    )
+    @pytest.mark.skipif(not os.environ.get("GEMINI_API_KEY"), reason="Requires Gemini API key")
     def test_gemini_backend(self, page):
         """Test using Gemini backend explicitly."""
         from testscout.backends import GeminiBackend
 
-        backend = GeminiBackend(
-            api_key=os.environ.get("GEMINI_API_KEY"),
-            model="gemini-2.0-flash"
-        )
+        backend = GeminiBackend(api_key=os.environ.get("GEMINI_API_KEY"), model="gemini-2.0-flash")
 
         scout = Scout(page, backend=backend)
         page.goto("https://example.com")
@@ -314,18 +311,12 @@ class TestBackendSwitching:
 
         scout.cleanup()
 
-    @pytest.mark.skipif(
-        not os.environ.get("OPENAI_API_KEY"),
-        reason="Requires OpenAI API key"
-    )
+    @pytest.mark.skipif(not os.environ.get("OPENAI_API_KEY"), reason="Requires OpenAI API key")
     def test_openai_backend(self, page):
         """Test using OpenAI backend explicitly."""
         from testscout.backends import OpenAIBackend
 
-        backend = OpenAIBackend(
-            api_key=os.environ.get("OPENAI_API_KEY"),
-            model="gpt-4o"
-        )
+        backend = OpenAIBackend(api_key=os.environ.get("OPENAI_API_KEY"), model="gpt-4o")
 
         scout = Scout(page, backend=backend)
         page.goto("https://example.com")
@@ -355,7 +346,7 @@ class TestRealWorldScenarios:
         assertions.no_errors()
 
         # 3. Interact with search
-        success = scout.action("Click on the search box", timeout=10000)
+        scout.action("Click on the search box", timeout=10000)
         # Note: May or may not work depending on AI, but should not crash
 
         # 4. Query the page

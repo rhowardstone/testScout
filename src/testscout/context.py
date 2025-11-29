@@ -9,13 +9,12 @@ Captures everything that happens during a test:
 - Screenshots at key moments
 """
 
-import time
 import hashlib
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class LogLevel(Enum):
@@ -29,6 +28,7 @@ class LogLevel(Enum):
 @dataclass
 class ConsoleLog:
     """A single console message."""
+
     level: LogLevel
     text: str
     timestamp: datetime = field(default_factory=datetime.now)
@@ -48,6 +48,7 @@ class ConsoleLog:
 @dataclass
 class NetworkRequest:
     """A network request/response."""
+
     url: str
     method: str
     status: Optional[int] = None
@@ -69,6 +70,7 @@ class NetworkRequest:
 @dataclass
 class AIVerification:
     """Record of an AI decision or verification."""
+
     action_type: str  # "assert", "action", "query"
     description: str
     result: bool
@@ -104,6 +106,7 @@ class Context:
 
         context.save_report("test_report.txt")
     """
+
     console_logs: List[ConsoleLog] = field(default_factory=list)
     network_requests: List[NetworkRequest] = field(default_factory=list)
     page_errors: List[str] = field(default_factory=list)
@@ -153,36 +156,48 @@ class Context:
                 "debug": LogLevel.DEBUG,
             }
             level = level_map.get(msg.type, LogLevel.LOG)
-            self.console_logs.append(ConsoleLog(
-                level=level,
-                text=msg.text,
-                source=msg.location.get("url") if msg.location else None,
-                line=msg.location.get("lineNumber") if msg.location else None,
-            ))
+            self.console_logs.append(
+                ConsoleLog(
+                    level=level,
+                    text=msg.text,
+                    source=msg.location.get("url") if msg.location else None,
+                    line=msg.location.get("lineNumber") if msg.location else None,
+                )
+            )
 
         def on_page_error(error):
             self.page_errors.append(str(error))
 
         def on_response(response):
-            self.network_requests.append(NetworkRequest(
-                url=response.url,
-                method=response.request.method,
-                status=response.status,
-                failed=response.status >= 400,
-            ))
+            self.network_requests.append(
+                NetworkRequest(
+                    url=response.url,
+                    method=response.request.method,
+                    status=response.status,
+                    failed=response.status >= 400,
+                )
+            )
 
         def on_request_failed(request):
             failure = request.failure
             # In Playwright, request.failure is a string (the error message) or None
-            failure_reason = failure if isinstance(failure, str) else (
-                failure.error_text if hasattr(failure, 'error_text') else str(failure) if failure else "Unknown"
+            failure_reason = (
+                failure
+                if isinstance(failure, str)
+                else (
+                    failure.error_text
+                    if hasattr(failure, "error_text")
+                    else str(failure) if failure else "Unknown"
+                )
             )
-            self.network_requests.append(NetworkRequest(
-                url=request.url,
-                method=request.method,
-                failed=True,
-                failure_reason=failure_reason,
-            ))
+            self.network_requests.append(
+                NetworkRequest(
+                    url=request.url,
+                    method=request.method,
+                    failed=True,
+                    failure_reason=failure_reason,
+                )
+            )
 
         page.on("console", on_console)
         page.on("pageerror", on_page_error)
@@ -214,19 +229,13 @@ class Context:
     @property
     def errors(self) -> List[str]:
         """Get all error messages."""
-        console_errors = [
-            log.text for log in self.console_logs
-            if log.level == LogLevel.ERROR
-        ]
+        console_errors = [log.text for log in self.console_logs if log.level == LogLevel.ERROR]
         return console_errors + self.page_errors
 
     @property
     def warnings(self) -> List[str]:
         """Get all warning messages."""
-        return [
-            log.text for log in self.console_logs
-            if log.level == LogLevel.WARNING
-        ]
+        return [log.text for log in self.console_logs if log.level == LogLevel.WARNING]
 
     @property
     def network_errors(self) -> List[NetworkRequest]:
@@ -275,54 +284,68 @@ class Context:
 
         # Summary
         s = self.summary()
-        lines.extend([
-            f"Console Logs: {s['console_logs']}",
-            f"Errors: {s['errors']}",
-            f"Warnings: {s['warnings']}",
-            f"Network Errors: {s['network_errors']}",
-            f"AI Verifications: {s['ai_verifications']} ({s['ai_passes']} pass, {s['ai_failures']} fail)",
-            "",
-        ])
+        lines.extend(
+            [
+                f"Console Logs: {s['console_logs']}",
+                f"Errors: {s['errors']}",
+                f"Warnings: {s['warnings']}",
+                f"Network Errors: {s['network_errors']}",
+                f"AI Verifications: {s['ai_verifications']} ({s['ai_passes']} pass, {s['ai_failures']} fail)",
+                "",
+            ]
+        )
 
         # Critical errors
         critical = self.get_critical_errors()
         if critical:
-            lines.extend([
-                "--- CRITICAL ERRORS ---",
-                *[f"  - {e[:200]}" for e in critical[:10]],
-                "",
-            ])
+            lines.extend(
+                [
+                    "--- CRITICAL ERRORS ---",
+                    *[f"  - {e[:200]}" for e in critical[:10]],
+                    "",
+                ]
+            )
 
         # All errors
         if self.errors:
-            lines.extend([
-                "--- ERRORS (F12 Console) ---",
-                *[f"  - {e[:200]}" for e in self.errors[:20]],
-                "",
-            ])
+            lines.extend(
+                [
+                    "--- ERRORS (F12 Console) ---",
+                    *[f"  - {e[:200]}" for e in self.errors[:20]],
+                    "",
+                ]
+            )
 
         # Warnings
         if self.warnings:
-            lines.extend([
-                "--- WARNINGS (F12 Console) ---",
-                *[f"  - {w[:200]}" for w in self.warnings[:10]],
-                "",
-            ])
+            lines.extend(
+                [
+                    "--- WARNINGS (F12 Console) ---",
+                    *[f"  - {w[:200]}" for w in self.warnings[:10]],
+                    "",
+                ]
+            )
 
         # Network errors
         if self.network_errors:
-            lines.extend([
-                "--- NETWORK ERRORS ---",
-                *[f"  - {r.status or 'FAIL'} {r.method} {r.url[:100]}"
-                  for r in self.network_errors[:10]],
-                "",
-            ])
+            lines.extend(
+                [
+                    "--- NETWORK ERRORS ---",
+                    *[
+                        f"  - {r.status or 'FAIL'} {r.method} {r.url[:100]}"
+                        for r in self.network_errors[:10]
+                    ],
+                    "",
+                ]
+            )
 
         # AI verifications
         if self.ai_verifications:
-            lines.extend([
-                "--- AI VERIFICATIONS ---",
-            ])
+            lines.extend(
+                [
+                    "--- AI VERIFICATIONS ---",
+                ]
+            )
             for v in self.ai_verifications:
                 status = "PASS" if v.result else "FAIL"
                 lines.append(f"  [{status}] {v.action_type}: {v.description[:80]}")
@@ -332,9 +355,11 @@ class Context:
 
         # Full console log
         if self.console_logs:
-            lines.extend([
-                "--- FULL CONSOLE LOG (F12) ---",
-            ])
+            lines.extend(
+                [
+                    "--- FULL CONSOLE LOG (F12) ---",
+                ]
+            )
             for log in self.console_logs[-50:]:  # Last 50 logs
                 lines.append(f"  [{log.level.value.upper()}] {log.text[:150]}")
             lines.append("")

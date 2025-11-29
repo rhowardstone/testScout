@@ -4,18 +4,18 @@ Command-line interface for testScout.
 Provides commands for autonomous exploration and testing.
 """
 
-import sys
 import argparse
 import os
-from typing import Optional
+import sys
 
 
 def explore_command(args):
     """Run autonomous exploration on a URL."""
     from playwright.sync_api import sync_playwright
+
     from .explorer import Explorer
 
-    print(f"🔍 testScout Explorer")
+    print("🔍 testScout Explorer")
     print(f"Target: {args.url}")
     print(f"Max actions: {args.max_actions}")
     print(f"Max time: {args.max_time}s")
@@ -24,7 +24,7 @@ def explore_command(args):
     # Get API key
     api_key = args.api_key or os.environ.get(f"{args.backend.upper()}_API_KEY")
     if not api_key:
-        print(f"❌ Error: No API key provided.")
+        print("❌ Error: No API key provided.")
         print(f"   Set {args.backend.upper()}_API_KEY environment variable or use --api-key")
         sys.exit(1)
 
@@ -55,7 +55,7 @@ def explore_command(args):
     print(report.summary())
     print()
     print(f"📊 Report saved to: {args.output}")
-    print(f"   Open in browser to see detailed findings")
+    print("   Open in browser to see detailed findings")
 
 
 def main():
@@ -80,64 +80,53 @@ Examples:
       --api-key your-key
 
 For more information, visit: https://github.com/rhowardstone/testScout
-        """
+        """,
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Explore command
     explore_parser = subparsers.add_parser(
-        "explore",
-        help="Autonomously explore a website to find bugs"
+        "explore", help="Autonomously explore a website to find bugs"
     )
-    explore_parser.add_argument(
-        "url",
-        help="URL to explore (e.g., http://localhost:8888)"
-    )
+    explore_parser.add_argument("url", help="URL to explore (e.g., http://localhost:8888)")
     explore_parser.add_argument(
         "--max-actions",
         type=int,
         default=50,
-        help="Maximum number of actions to take (default: 50)"
+        help="Maximum number of actions to take (default: 50)",
     )
     explore_parser.add_argument(
-        "--max-time",
-        type=int,
-        default=300,
-        help="Maximum time in seconds (default: 300)"
+        "--max-time", type=int, default=300, help="Maximum time in seconds (default: 300)"
     )
     explore_parser.add_argument(
-        "--max-depth",
-        type=int,
-        default=5,
-        help="Maximum navigation depth (default: 5)"
+        "--max-depth", type=int, default=5, help="Maximum navigation depth (default: 5)"
     )
     explore_parser.add_argument(
         "--backend",
         choices=["gemini", "openai"],
         default="gemini",
-        help="AI backend to use (default: gemini)"
+        help="AI backend to use (default: gemini)",
     )
     explore_parser.add_argument(
-        "--api-key",
-        help="API key for the backend (or set GEMINI_API_KEY/OPENAI_API_KEY env var)"
+        "--api-key", help="API key for the backend (or set GEMINI_API_KEY/OPENAI_API_KEY env var)"
     )
     explore_parser.add_argument(
         "--output",
         default="exploration_report.html",
-        help="Output file path (default: exploration_report.html)"
+        help="Output file path (default: exploration_report.html)",
     )
     explore_parser.add_argument(
         "--headless",
         action="store_true",
         default=True,
-        help="Run browser in headless mode (default: True)"
+        help="Run browser in headless mode (default: True)",
     )
     explore_parser.add_argument(
         "--headed",
         action="store_false",
         dest="headless",
-        help="Run browser in headed mode (show browser window)"
+        help="Run browser in headed mode (show browser window)",
     )
     explore_parser.set_defaults(func=explore_command)
 

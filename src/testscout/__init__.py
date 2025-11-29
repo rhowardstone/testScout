@@ -85,47 +85,47 @@ Custom Backends:
     ```
 """
 
-from .discovery import (
-    ElementDiscovery,
-    ElementDiscoverySync,
-    DiscoveredElement,
-    PageElements,
-    ElementType,
-)
-from .context import (
-    Context,
-    ConsoleLog,
-    NetworkRequest,
-    AIVerification,
-    LogLevel,
-)
 from .agent import (
     Scout,
     create_scout,
 )
+from .assertions import (
+    AssertionContext,
+    RetryConfig,
+    VisualAssertions,
+    wait_for_element,
+    wait_for_navigation,
+    wait_until,
+)
 from .backends import (
-    VisionBackend,
-    GeminiBackend,
-    OpenAIBackend,
     ActionPlan,
     ActionType,
     AssertionResult,
+    GeminiBackend,
+    OpenAIBackend,
+    VisionBackend,
 )
-from .assertions import (
-    VisualAssertions,
-    AssertionContext,
-    wait_until,
-    wait_for_element,
-    wait_for_navigation,
-    RetryConfig,
+from .context import (
+    AIVerification,
+    ConsoleLog,
+    Context,
+    LogLevel,
+    NetworkRequest,
+)
+from .discovery import (
+    DiscoveredElement,
+    ElementDiscovery,
+    ElementDiscoverySync,
+    ElementType,
+    PageElements,
 )
 from .explorer import (
-    Explorer,
-    create_explorer,
-    ExplorationReport,
-    ExplorationState,
     Bug,
     BugSeverity,
+    ExplorationReport,
+    ExplorationState,
+    Explorer,
+    create_explorer,
 )
 
 __version__ = "0.1.0"

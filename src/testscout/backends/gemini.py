@@ -5,9 +5,9 @@ Supports Gemini 2.0 Flash and other Gemini models for visual AI testing.
 """
 
 import json
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
-from .base import VisionBackend, ActionPlan, AssertionResult
+from .base import ActionPlan, AssertionResult, VisionBackend
 
 
 class GeminiBackend(VisionBackend):
@@ -35,6 +35,7 @@ class GeminiBackend(VisionBackend):
             model: Gemini model name (default: gemini-2.0-flash)
         """
         import google.generativeai as genai
+
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(model)
         self.genai = genai
@@ -78,10 +79,12 @@ Return ONLY valid JSON (no markdown, no explanation):
 }}
 """
 
-        response = self.model.generate_content([
-            prompt,
-            self._make_image_part(screenshot_b64),
-        ])
+        response = self.model.generate_content(
+            [
+                prompt,
+                self._make_image_part(screenshot_b64),
+            ]
+        )
 
         try:
             # Clean response - remove markdown code blocks if present
@@ -96,6 +99,7 @@ Return ONLY valid JSON (no markdown, no explanation):
             return ActionPlan.from_dict(data)
         except (json.JSONDecodeError, AttributeError) as e:
             from .base import ActionType
+
             return ActionPlan(
                 action=ActionType.NONE,
                 reason=f"Failed to parse AI response: {e}. Raw: {response.text[:200]}",
@@ -106,7 +110,7 @@ Return ONLY valid JSON (no markdown, no explanation):
         self,
         assertion: str,
         screenshot_b64: str,
-        elements = None,
+        elements=None,
     ) -> AssertionResult:
         """Verify an assertion using Gemini vision."""
         element_context = ""
@@ -128,10 +132,12 @@ Return ONLY valid JSON (no markdown, no explanation):
 }}
 """
 
-        response = self.model.generate_content([
-            prompt,
-            self._make_image_part(screenshot_b64),
-        ])
+        response = self.model.generate_content(
+            [
+                prompt,
+                self._make_image_part(screenshot_b64),
+            ]
+        )
 
         try:
             text = response.text.strip()
@@ -154,7 +160,7 @@ Return ONLY valid JSON (no markdown, no explanation):
         self,
         question: str,
         screenshot_b64: str,
-        elements = None,
+        elements=None,
     ) -> str:
         """Ask Gemini a question about the page."""
         element_context = ""
@@ -169,10 +175,12 @@ QUESTION: {question}
 Give a concise, direct answer.
 """
 
-        response = self.model.generate_content([
-            prompt,
-            self._make_image_part(screenshot_b64),
-        ])
+        response = self.model.generate_content(
+            [
+                prompt,
+                self._make_image_part(screenshot_b64),
+            ]
+        )
 
         return response.text.strip()
 
@@ -199,10 +207,12 @@ Return ONLY valid JSON array (no markdown):
 ]
 """
 
-        response = self.model.generate_content([
-            prompt,
-            self._make_image_part(screenshot_b64),
-        ])
+        response = self.model.generate_content(
+            [
+                prompt,
+                self._make_image_part(screenshot_b64),
+            ]
+        )
 
         try:
             text = response.text.strip()

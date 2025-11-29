@@ -10,10 +10,9 @@ This solves the core problem: AI can SEE a button visually but fails to
 generate a working CSS selector. With SoM, AI just says "click element 4".
 """
 
-import json
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class ElementType(Enum):
@@ -31,6 +30,7 @@ class ElementType(Enum):
 @dataclass
 class DiscoveredElement:
     """An element found on the page with its properties."""
+
     ai_id: int
     element_type: ElementType
     tag: str
@@ -68,6 +68,7 @@ class DiscoveredElement:
 @dataclass
 class PageElements:
     """All discovered elements on a page."""
+
     elements: List[DiscoveredElement] = field(default_factory=list)
     screenshot_hash: Optional[str] = None
 
@@ -102,9 +103,9 @@ class PageElements:
             if el.text:
                 desc += f' "{el.text[:50]}"'
             if el.placeholder:
-                desc += f' (placeholder: {el.placeholder})'
+                desc += f" (placeholder: {el.placeholder})"
             if el.aria_label:
-                desc += f' (aria: {el.aria_label})'
+                desc += f" (aria: {el.aria_label})"
             lines.append(desc)
         return "\n".join(lines)
 

@@ -126,7 +126,27 @@ def _load_action(action_dir: Path) -> Optional[Dict[str, Any]]:
     decision_path = action_dir / "decision.json"
     if decision_path.exists():
         with open(decision_path) as f:
-            action_data["decision"] = json.load(f)
+            raw_decision = json.load(f)
+            # Normalize to expected format: decision -> next_action
+            if "decision" in raw_decision and "next_action" not in raw_decision:
+                # Convert {decision: {action, element_id, ...}} to {next_action: {...}}
+                action_data["decision"] = {
+                    "next_action": raw_decision.get("decision", {}),
+                    "observations": [],
+                    "bugs_found": [],
+                }
+            else:
+                action_data["decision"] = raw_decision
+
+    # Load ai_response for observations/bugs
+    ai_response_path = action_dir / "ai_response.json"
+    if ai_response_path.exists():
+        with open(ai_response_path) as f:
+            ai_response = json.load(f)
+            parsed = ai_response.get("parsed", {})
+            if action_data["decision"]:
+                action_data["decision"]["observations"] = parsed.get("observations", [])
+                action_data["decision"]["bugs_found"] = parsed.get("bugs_found", [])
 
     # Load context
     context_path = action_dir / "context.json"

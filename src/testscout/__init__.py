@@ -120,6 +120,7 @@ from .discovery import (
     PageElements,
 )
 from .audit import AuditTrail
+from .presentation import generate_slideshow
 from .explorer import (
     Bug,
     BugSeverity,
@@ -172,4 +173,6 @@ __all__ = [
     "BugSeverity",
     # Audit Trail
     "AuditTrail",
+    # Presentation
+    "generate_slideshow",
 ]

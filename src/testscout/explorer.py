@@ -490,8 +490,8 @@ Return JSON:
             if self.audit:
                 self.audit.complete_action(success=success, duration_ms=action_duration_ms)
 
-            if success:
-                self.state.add_action(next_action.get("reason", "unknown"))
+            # Action history is now updated inside _execute_exploration_action
+            # with the actual element description instead of the AI's reason
 
             # Check if we navigated to a new page
             current_url = self.page.url
@@ -691,7 +691,7 @@ Return JSON:
             screenshot_clean = self.page.screenshot()
             screenshot_b64 = base64.b64encode(screenshot_marked).decode("utf-8")
 
-            # Build prompt
+            # Build prompt - show clicked elements (e.g., "clicked button: Menu Toggle")
             clicked_summary = ", ".join(list(self.state.action_history[-10:])) or "None yet"
 
             prompt = self.EXPLORE_PROMPT.format(
@@ -774,7 +774,15 @@ Return JSON:
                 element = elements.find_by_id(element_id)
                 if element:
                     self.page.click(element.selector(), timeout=5000)
-                    self.state.mark_element_visited(self.page.url, reason)
+                    # Store a clear element description, not the AI's reason
+                    element_desc = f"{element.tag}"
+                    if element.text:
+                        element_desc += f": {element.text[:50]}"
+                    elif element.aria_label:
+                        element_desc += f": {element.aria_label[:50]}"
+                    self.state.mark_element_visited(self.page.url, element_desc)
+                    # Add to action_history so AI knows what was clicked
+                    self.state.add_action(f"clicked {element_desc}")
                     return True
 
             elif action_type == "fill" and element_id is not None and text:
@@ -782,12 +790,18 @@ Return JSON:
                 element = elements.find_by_id(element_id)
                 if element:
                     self.page.fill(element.selector(), text, timeout=5000)
+                    # Add to action_history
+                    element_desc = f"{element.tag}"
+                    if element.aria_label:
+                        element_desc += f": {element.aria_label[:30]}"
+                    self.state.add_action(f"filled {element_desc} with '{text[:20]}'")
                     return True
 
             elif action_type == "scroll":
                 direction = action.get("direction", "down")
                 delta = -300 if direction == "up" else 300
                 self.page.mouse.wheel(0, delta)
+                self.state.add_action(f"scrolled {direction}")
                 return True
 
         except Exception as e:

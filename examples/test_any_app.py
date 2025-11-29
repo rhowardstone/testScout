@@ -20,7 +20,7 @@ from playwright.sync_api import sync_playwright
 # Import testScout
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from ai_e2e import Scout, Context, VisualAssertions, create_scout
+from testscout import Scout, Context, VisualAssertions, create_scout
 
 
 # Skip if no API key

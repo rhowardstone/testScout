@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e.discovery import (
+from testscout.discovery import (
     DiscoveredElement,
     PageElements,
     ElementType,

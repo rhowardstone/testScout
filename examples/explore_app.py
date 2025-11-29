@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright
 # Add parent to path for local development
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e import Explorer, create_explorer, BugSeverity
+from testscout import Explorer, create_explorer, BugSeverity
 
 
 def main():

@@ -6,7 +6,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e.context import Context, ConsoleLog, LogLevel, AIVerification
+from testscout.context import Context, ConsoleLog, LogLevel, AIVerification
 
 
 class TestContext:

@@ -29,7 +29,7 @@ from playwright.sync_api import sync_playwright
 # Add package to path if running directly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e import Scout, Context, VisualAssertions
+from testscout import Scout, Context, VisualAssertions
 
 # Configuration via environment variables
 BASE_URL = os.environ.get("TEST_URL", "http://localhost:8888")

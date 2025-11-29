@@ -7,13 +7,13 @@ from typing import Dict, Any, Optional, List
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ai_e2e.agent import (
+from testscout.agent import (
     VisionBackend,
     ActionPlan,
     ActionType,
     AssertionResult,
 )
-from ai_e2e.discovery import PageElements
+from testscout.discovery import PageElements
 
 
 class MockVisionBackend(VisionBackend):

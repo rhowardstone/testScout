@@ -678,8 +678,9 @@ Return JSON:
                 )
 
     def _get_next_action(self) -> Optional[Dict[str, Any]]:
-        """Ask AI what to do next."""
+        """Ask AI what to do next with retry logic for JSON parsing failures."""
         action_start_time = time.time()
+        max_retries = 3
 
         try:
             # Get current elements
@@ -725,30 +726,76 @@ Return JSON:
                 )
                 self.audit.record_ai_prompt(prompt)
 
-            # Ask AI
-            response = self.scout.backend.model.generate_content(
-                [
-                    prompt,
-                    {"mime_type": "image/png", "data": screenshot_b64},
-                ]
-            )
+            # Ask AI with retry logic
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    # On retry, add a reminder about JSON format
+                    current_prompt = prompt
+                    if attempt > 0:
+                        current_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON, no markdown, no explanation text."
 
-            # Parse response
-            raw_text = response.text.strip()
-            text = raw_text
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            text = text.strip()
+                    response = self.scout.backend.model.generate_content(
+                        [
+                            current_prompt,
+                            {"mime_type": "image/png", "data": screenshot_b64},
+                        ]
+                    )
 
-            parsed = json.loads(text)
+                    # Check for empty response
+                    if not response.text or not response.text.strip():
+                        last_error = "Empty response from AI"
+                        time.sleep(0.5)  # Brief pause before retry
+                        continue
 
-            # Record AI response in audit
+                    # Parse response
+                    raw_text = response.text.strip()
+                    text = raw_text
+
+                    # Handle markdown code blocks
+                    if text.startswith("```"):
+                        parts = text.split("```")
+                        if len(parts) >= 2:
+                            text = parts[1]
+                            if text.startswith("json"):
+                                text = text[4:]
+                    text = text.strip()
+
+                    # Try to extract JSON if there's extra text
+                    if not text.startswith("{"):
+                        # Look for JSON object in the response
+                        start_idx = text.find("{")
+                        end_idx = text.rfind("}") + 1
+                        if start_idx != -1 and end_idx > start_idx:
+                            text = text[start_idx:end_idx]
+
+                    parsed = json.loads(text)
+
+                    # Record AI response in audit
+                    if self.audit:
+                        self.audit.record_ai_response(raw_text, parsed)
+
+                    return parsed
+
+                except json.JSONDecodeError as e:
+                    last_error = f"JSON parse error (attempt {attempt + 1}/{max_retries}): {str(e)[:50]}"
+                    time.sleep(0.5)  # Brief pause before retry
+                    continue
+                except Exception as e:
+                    last_error = f"AI error (attempt {attempt + 1}/{max_retries}): {str(e)[:50]}"
+                    time.sleep(0.5)
+                    continue
+
+            # All retries failed
+            error_msg = f"AI error after {max_retries} retries: {last_error}"
+            self.report.ai_observations.append(error_msg)
+
+            # Record error in audit
             if self.audit:
-                self.audit.record_ai_response(raw_text, parsed)
+                duration_ms = (time.time() - action_start_time) * 1000
+                self.audit.complete_action(success=False, error=error_msg, duration_ms=duration_ms)
 
-            return parsed
+            return None
 
         except Exception as e:
             error_msg = f"AI error: {str(e)[:100]}"

@@ -285,7 +285,7 @@ class Explorer:
         report.save("report.html")
     """
 
-    EXPLORE_PROMPT = """You are an autonomous QA engineer exploring a web application.
+    EXPLORE_PROMPT = """You are an autonomous QA engineer exploring a web application as a BRAND NEW USER.
 
 CURRENT PAGE: {url}
 ALREADY CLICKED (avoid these): {clicked}
@@ -293,9 +293,18 @@ ALREADY CLICKED (avoid these): {clicked}
 AVAILABLE ELEMENTS:
 {elements}
 
+CRITICAL RULES FOR AUTHENTICATION:
+- You are a NEW user with NO existing account. The database has no record of you.
+- SIGN UP vs SIGN IN: These are DIFFERENT pages. Look at form fields carefully:
+  - SIGN UP page: Has "confirm password" field, "create account" button, register/signup in URL
+  - SIGN IN page: Only email+password, "login"/"signin" button, login/signin in URL
+- When you see a sign-up form, CREATE a new account with test data
+- NEVER try to sign in with credentials that don't exist - you haven't created them yet!
+- Proper flow: Sign Up first → Create Account → Then you CAN sign in
+
 Your goal is to find BUGS by:
 1. Clicking buttons that might reveal broken features
-2. Testing forms and inputs
+2. Testing forms and inputs with APPROPRIATE test data
 3. Exploring all navigation menus
 4. Looking for error states
 5. Finding mock/placeholder data that should be real
@@ -304,6 +313,12 @@ Choose the MOST INTERESTING element to click next - something that:
 - Hasn't been tested yet
 - Might reveal bugs
 - Is a core feature (not just styling)
+
+When filling forms, use sensible test data:
+- Email: test@example.com or testuser@test.com
+- Password: TestPassword123!
+- Name: Test User
+- Use data appropriate for the FORM TYPE (sign-up vs sign-in vs search)
 
 If you see any BUGS or ISSUES on the current page, describe them.
 

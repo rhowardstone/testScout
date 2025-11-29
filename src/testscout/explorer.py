@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from .agent import Scout
+from .audit import AuditTrail
 from .context import Context
 
 
@@ -331,6 +332,7 @@ Return JSON:
         api_key: Optional[str] = None,
         backend_type: str = "gemini",
         context: Optional[Context] = None,
+        enable_audit: bool = True,
     ):
         self.page = page
         self.context = context or Context()
@@ -343,6 +345,10 @@ Return JSON:
         )
         self.state = ExplorationState()
         self.report = ExplorationReport(start_url="")
+
+        # Audit trail for complete exploration history
+        self.enable_audit = enable_audit
+        self.audit = AuditTrail() if enable_audit else None
 
     def explore(
         self,
@@ -374,6 +380,10 @@ Return JSON:
         self.state = ExplorationState()
         self.state.start_url = start_url
         self.report = ExplorationReport(start_url=start_url)
+
+        # Start audit session
+        if self.audit:
+            self.audit.start_session(start_url)
 
         # Navigate to start with network idle wait
         try:
@@ -451,18 +461,34 @@ Return JSON:
             for obs in decision.get("observations", []):
                 if obs not in self.report.ai_observations:
                     self.report.ai_observations.append(obs)
+                    if self.audit:
+                        self.audit.record_observation(obs)
 
             # Execute the action
             next_action = decision.get("next_action", {})
             action_type = next_action.get("action", "done")
+            action_reason = next_action.get("reason", "")
+
+            # Record decision in audit
+            if self.audit:
+                self.audit.record_decision(next_action, action_reason)
 
             if action_type == "done":
                 self.report.ai_observations.append("AI decided exploration is complete")
+                # Complete the audit action
+                if self.audit:
+                    self.audit.complete_action(success=True, duration_ms=0)
                 break
 
+            action_exec_start = time.time()
             success = self._execute_exploration_action(next_action)
+            action_duration_ms = (time.time() - action_exec_start) * 1000
             action_count += 1
             self.report.actions_taken = action_count
+
+            # Complete the audit action
+            if self.audit:
+                self.audit.complete_action(success=success, duration_ms=action_duration_ms)
 
             if success:
                 self.state.add_action(next_action.get("reason", "unknown"))
@@ -477,7 +503,49 @@ Return JSON:
             time.sleep(0.5)
 
         self.report.duration_seconds = time.time() - start_time
+
+        # End audit session and capture final context
+        if self.audit:
+            self.audit.end_session()
+            # Capture network and console logs from context
+            for req in self.context.network_requests:
+                self.audit.record_network_request(
+                    url=req.url,
+                    method=req.method,
+                    status=req.status,
+                    failed=req.failed,
+                    failure_reason=req.failure_reason,
+                )
+            for log in self.context.console_logs:
+                self.audit.record_console_log(
+                    level=log.level.value,
+                    text=log.text,
+                    source=log.source,
+                    line=log.line,
+                )
+
         return self.report
+
+    def save_audit(self, output_dir: str):
+        """
+        Save the complete audit trail to a directory.
+
+        Creates a directory with:
+        - summary.html/json - Overview
+        - timeline.jsonl - Event timeline
+        - actions/NNN/ - Per-action details with screenshots
+        - network/ - Network request logs
+        - console/ - Console output logs
+        - bugs/ - Bug details with screenshots
+
+        Args:
+            output_dir: Path to save audit trail. If None, auto-generates
+                       name like 'exploration_2024-11-29_153042/'
+        """
+        if not self.audit:
+            raise ValueError("Audit trail not enabled. Set enable_audit=True when creating Explorer.")
+
+        self.audit.save(output_dir)
 
     def _detect_blank_page(self) -> Optional[Bug]:
         """
@@ -611,15 +679,17 @@ Return JSON:
 
     def _get_next_action(self) -> Optional[Dict[str, Any]]:
         """Ask AI what to do next."""
+        action_start_time = time.time()
+
         try:
             # Get current elements
             elements = self.scout.discovery.discover()
             element_summary = elements.to_prompt_summary() if elements else "No elements"
 
-            # Get screenshot
-            screenshot_b64 = base64.b64encode(
-                self.scout.discovery.screenshot_with_markers()
-            ).decode("utf-8")
+            # Get screenshots (clean and marked)
+            screenshot_marked = self.scout.discovery.screenshot_with_markers()
+            screenshot_clean = self.page.screenshot()
+            screenshot_b64 = base64.b64encode(screenshot_marked).decode("utf-8")
 
             # Build prompt
             clicked_summary = ", ".join(list(self.state.action_history[-10:])) or "None yet"
@@ -630,6 +700,31 @@ Return JSON:
                 elements=element_summary,
             )
 
+            # Start audit action recording
+            if self.audit:
+                # Convert elements to serializable format
+                visible_elements = []
+                if elements:
+                    for el in elements.elements:
+                        visible_elements.append({
+                            "id": el.id,
+                            "tag": el.tag,
+                            "text": el.text[:100] if el.text else "",
+                            "role": el.role,
+                            "visible": el.visible,
+                            "selector": el.selector() if hasattr(el, "selector") else None,
+                        })
+
+                self.audit.start_action(
+                    url=self.page.url,
+                    screenshot_clean=screenshot_clean,
+                    screenshot_marked=screenshot_marked,
+                    visible_elements=visible_elements,
+                    depth=self.state.current_depth,
+                    action_history=list(self.state.action_history),
+                )
+                self.audit.record_ai_prompt(prompt)
+
             # Ask AI
             response = self.scout.backend.model.generate_content(
                 [
@@ -639,17 +734,31 @@ Return JSON:
             )
 
             # Parse response
-            text = response.text.strip()
+            raw_text = response.text.strip()
+            text = raw_text
             if text.startswith("```"):
                 text = text.split("```")[1]
                 if text.startswith("json"):
                     text = text[4:]
             text = text.strip()
 
-            return json.loads(text)
+            parsed = json.loads(text)
+
+            # Record AI response in audit
+            if self.audit:
+                self.audit.record_ai_response(raw_text, parsed)
+
+            return parsed
 
         except Exception as e:
-            self.report.ai_observations.append(f"AI error: {str(e)[:100]}")
+            error_msg = f"AI error: {str(e)[:100]}"
+            self.report.ai_observations.append(error_msg)
+
+            # Record error in audit
+            if self.audit:
+                duration_ms = (time.time() - action_start_time) * 1000
+                self.audit.complete_action(success=False, error=error_msg, duration_ms=duration_ms)
+
             return None
 
     def _execute_exploration_action(self, action: Dict[str, Any]) -> bool:
@@ -714,28 +823,52 @@ Return JSON:
         except:
             pass
 
+        title = bug_data.get("title", "Unknown Issue")
+        description = bug_data.get("description", "")
+        reproduction_steps = list(self.state.action_history[-5:])
+        console_errors = list(self.context.errors[-5:])
+
         self.report.add_bug(
             Bug(
                 severity=severity,
-                title=bug_data.get("title", "Unknown Issue"),
-                description=bug_data.get("description", ""),
-                reproduction_steps=list(self.state.action_history[-5:]),
+                title=title,
+                description=description,
+                reproduction_steps=reproduction_steps,
                 url=self.page.url,
                 screenshot=screenshot,
-                console_errors=list(self.context.errors[-5:]),
+                console_errors=console_errors,
             )
         )
+
+        # Also record to audit trail
+        if self.audit:
+            self.audit.record_bug(
+                severity=severity.value,
+                title=title,
+                description=description,
+                reproduction_steps=reproduction_steps,
+                url=self.page.url,
+                screenshot=screenshot,
+                console_errors=console_errors,
+            )
 
 
 def create_explorer(
     page,
     api_key: Optional[str] = None,
     backend_type: str = "gemini",
+    enable_audit: bool = True,
 ) -> Explorer:
     """
     Create an Explorer with sensible defaults.
 
     Will try to get API key from environment if not provided.
+
+    Args:
+        page: Playwright page instance
+        api_key: API key for AI backend (uses env var if not provided)
+        backend_type: "gemini" or "openai"
+        enable_audit: Whether to enable audit trail (default True)
     """
     import os
 
@@ -750,4 +883,4 @@ def create_explorer(
             f"No API key provided and {backend_type.upper()}_API_KEY not in environment"
         )
 
-    return Explorer(page, api_key=api_key, backend_type=backend_type)
+    return Explorer(page, api_key=api_key, backend_type=backend_type, enable_audit=enable_audit)

@@ -155,6 +155,9 @@ report = explorer.explore(
 # Save HTML report with screenshots
 report.save("exploration_report.html")
 
+# Save complete audit trail for debugging
+explorer.save_audit("./wikipedia_audit")
+
 print(report.summary())
 # EXPLORATION REPORT
 # ==================
@@ -169,6 +172,62 @@ print(report.summary())
 #   Medium: 5
 #   Low: 2
 ```
+
+### 🔬 Complete Audit Trail
+
+When debugging AI exploration behavior, save a complete audit trail that captures everything:
+
+```python
+explorer = Explorer(page, api_key="your-api-key")
+report = explorer.explore(start_url="https://en.wikipedia.org", max_actions=10)
+
+# Save complete audit trail
+explorer.save_audit("./exploration_audit")
+```
+
+**Output Directory Structure:**
+
+```
+exploration_audit/
+├── summary.html              # Human-readable report
+├── summary.json              # Machine-readable summary
+├── timeline.jsonl            # Streaming event log
+├── actions/
+│   ├── 001/
+│   │   ├── screenshot.png         # Clean screenshot before action
+│   │   ├── screenshot_marked.png  # Screenshot with set-of-marks overlay
+│   │   ├── visible_elements.json  # Elements AI could see
+│   │   ├── ai_prompt.txt          # Exact prompt sent to AI
+│   │   ├── ai_response.json       # Raw AI response
+│   │   ├── decision.json          # Parsed decision + reasoning
+│   │   └── state.json             # Page state (URL, depth, history)
+│   └── 002/
+│       └── ...
+├── network/
+│   ├── requests.jsonl        # All network requests
+│   └── failures.jsonl        # Failed requests only
+├── console/
+│   ├── all.jsonl             # All console messages
+│   ├── errors.jsonl          # Errors only
+│   └── warnings.jsonl        # Warnings only
+└── bugs/
+    └── bug_001/
+        ├── screenshot.png
+        └── details.json
+```
+
+**What's Captured:**
+
+- **Screenshots**: Both clean and with set-of-marks overlay for each action
+- **AI Prompts**: Exact text sent to the AI model
+- **AI Responses**: Raw and parsed responses
+- **Decisions**: What action was chosen and why
+- **Page State**: URL, navigation depth, action history
+- **Network Activity**: All requests, failures, status codes
+- **Console Logs**: Errors, warnings, info messages
+- **Bugs Found**: Screenshots and details for each bug
+
+This makes AI exploration completely auditable - you can replay exactly what the AI saw, thought, and did.
 
 ### 📊 Comprehensive Context Capture
 

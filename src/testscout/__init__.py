@@ -119,6 +119,7 @@ from .discovery import (
     ElementType,
     PageElements,
 )
+from .audit import AuditTrail
 from .explorer import (
     Bug,
     BugSeverity,
@@ -169,4 +170,6 @@ __all__ = [
     "ExplorationState",
     "Bug",
     "BugSeverity",
+    # Audit Trail
+    "AuditTrail",
 ]

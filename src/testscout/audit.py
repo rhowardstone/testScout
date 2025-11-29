@@ -78,6 +78,9 @@ class ActionRecord:
     error: Optional[str] = None
     duration_ms: float = 0
 
+    # Model tracking
+    model_used: Optional[str] = None
+
 
 @dataclass
 class TimelineEvent:
@@ -204,11 +207,13 @@ class AuditTrail:
             self._current_action.ai_response_raw = raw_response
             self._current_action.ai_response_parsed = parsed_response
 
-    def record_decision(self, decision: Dict[str, Any], reason: str = ""):
+    def record_decision(self, decision: Dict[str, Any], reason: str = "", model_used: Optional[str] = None):
         """Record the decision made based on AI response."""
         if self._current_action:
             self._current_action.decision = decision
             self._current_action.decision_reason = reason
+            if model_used:
+                self._current_action.model_used = model_used
 
             self._add_timeline_event(
                 "decision",
@@ -216,6 +221,7 @@ class AuditTrail:
                     "action_type": decision.get("action", "unknown"),
                     "element_id": decision.get("element_id"),
                     "reason": reason,
+                    "model_used": model_used,
                 },
                 action_number=self._current_action.action_number,
             )
@@ -425,6 +431,7 @@ class AuditTrail:
             "success": action.success,
             "error": action.error,
             "duration_ms": action.duration_ms,
+            "model_used": action.model_used,
         }
         with open(action_dir / "decision.json", "w") as f:
             json.dump(decision_data, f, indent=2)

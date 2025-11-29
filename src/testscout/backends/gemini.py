@@ -2,12 +2,23 @@
 Google Gemini backend implementation for testScout.
 
 Supports Gemini 2.0 Flash and other Gemini models for visual AI testing.
+Includes automatic fallback to cheaper models on rate limits.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
 from .base import ActionPlan, AssertionResult, VisionBackend
+
+
+# Model hierarchy: primary -> fallback (on rate limits)
+MODEL_FALLBACKS = {
+    "gemini-2.5-pro": "gemini-2.0-flash",
+    "gemini-2.5-flash": "gemini-2.0-flash",
+    "gemini-2.0-flash": "gemini-1.5-flash",
+    "gemini-1.5-flash": None,  # No fallback for cheapest model
+}
 
 
 class GeminiBackend(VisionBackend):
@@ -15,6 +26,7 @@ class GeminiBackend(VisionBackend):
     Google Gemini implementation of VisionBackend.
 
     Uses Google's Generative AI SDK to power visual testing with Gemini models.
+    Automatically falls back to cheaper models on rate limits.
 
     Example:
         ```python
@@ -26,20 +38,25 @@ class GeminiBackend(VisionBackend):
         ```
     """
 
-    def __init__(self, api_key: str, model: str = "gemini-2.5-pro"):
+    def __init__(self, api_key: str, model: str = "gemini-2.0-flash", fallback_model: str = "gemini-1.5-flash"):
         """
         Initialize Gemini backend.
 
         Args:
             api_key: Google Generative AI API key
-            model: Gemini model name (default: gemini-2.5-pro)
+            model: Gemini model name (default: gemini-2.0-flash)
+            fallback_model: Model to use when primary hits rate limits (default: gemini-1.5-flash)
         """
         import google.generativeai as genai
 
         genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model)
         self.genai = genai
-        self.model_name = model
+        self.primary_model_name = model
+        self.fallback_model_name = fallback_model
+        self.model = genai.GenerativeModel(model)
+        self.fallback_model = genai.GenerativeModel(fallback_model) if fallback_model else None
+        self.model_name = model  # Current active model name
+        self.last_used_model = model  # Track which model was used for last call
 
     def _make_image_part(self, screenshot_b64: str) -> Dict[str, Any]:
         """Create image part for Gemini API."""
@@ -47,6 +64,65 @@ class GeminiBackend(VisionBackend):
             "mime_type": "image/png",
             "data": screenshot_b64,
         }
+
+    def _generate_with_fallback(self, content: List, max_retries: int = 3) -> Tuple[Any, str]:
+        """
+        Generate content with automatic fallback on rate limits.
+
+        Returns:
+            Tuple of (response, model_name_used)
+        """
+        models_to_try = [
+            (self.model, self.primary_model_name),
+        ]
+        if self.fallback_model:
+            models_to_try.append((self.fallback_model, self.fallback_model_name))
+
+        last_error = None
+
+        for model, model_name in models_to_try:
+            for attempt in range(max_retries):
+                try:
+                    response = model.generate_content(content)
+                    self.last_used_model = model_name
+                    return response, model_name
+                except Exception as e:
+                    error_str = str(e).lower()
+                    is_rate_limit = "429" in str(e) or "quota" in error_str or "rate" in error_str
+                    last_error = e
+
+                    if is_rate_limit:
+                        if attempt < max_retries - 1:
+                            # Wait before retry on same model
+                            wait_time = 10 * (attempt + 1)  # 10s, 20s, 30s
+                            print(f"Rate limit on {model_name}, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})...")
+                            time.sleep(wait_time)
+                        else:
+                            # Move to fallback model
+                            print(f"Rate limit exhausted on {model_name}, trying fallback...")
+                            break
+                    else:
+                        # Non-rate-limit error, retry briefly
+                        if attempt < max_retries - 1:
+                            time.sleep(1)
+                        else:
+                            raise e
+
+        # If we get here, all models failed
+        raise last_error or Exception("All models failed")
+
+    def generate_raw(self, content: List) -> Tuple[str, str]:
+        """
+        Generate raw content with automatic fallback.
+
+        Args:
+            content: List of content parts (prompts, images, etc.)
+
+        Returns:
+            Tuple of (response_text, model_name_used)
+        """
+        response, model_name = self._generate_with_fallback(content)
+        return response.text, model_name
 
     def plan_action(
         self,
@@ -79,14 +155,12 @@ Return ONLY valid JSON (no markdown, no explanation):
 }}
 """
 
-        response = self.model.generate_content(
-            [
+        try:
+            response, model_used = self._generate_with_fallback([
                 prompt,
                 self._make_image_part(screenshot_b64),
-            ]
-        )
+            ])
 
-        try:
             # Clean response - remove markdown code blocks if present
             text = response.text.strip()
             if text.startswith("```"):
@@ -96,15 +170,29 @@ Return ONLY valid JSON (no markdown, no explanation):
             text = text.strip()
 
             data = json.loads(text)
-            return ActionPlan.from_dict(data)
+            plan = ActionPlan.from_dict(data)
+            plan.model_used = model_used  # Track which model made this decision
+            return plan
         except (json.JSONDecodeError, AttributeError) as e:
             from .base import ActionType
 
-            return ActionPlan(
+            plan = ActionPlan(
                 action=ActionType.NONE,
-                reason=f"Failed to parse AI response: {e}. Raw: {response.text[:200]}",
+                reason=f"Failed to parse AI response: {e}",
                 confidence=0.0,
             )
+            plan.model_used = self.last_used_model
+            return plan
+        except Exception as e:
+            from .base import ActionType
+
+            plan = ActionPlan(
+                action=ActionType.NONE,
+                reason=f"AI error: {str(e)[:100]}",
+                confidence=0.0,
+            )
+            plan.model_used = self.last_used_model
+            return plan
 
     def verify_assertion(
         self,
@@ -132,14 +220,12 @@ Return ONLY valid JSON (no markdown, no explanation):
 }}
 """
 
-        response = self.model.generate_content(
-            [
+        try:
+            response, model_used = self._generate_with_fallback([
                 prompt,
                 self._make_image_part(screenshot_b64),
-            ]
-        )
+            ])
 
-        try:
             text = response.text.strip()
             if text.startswith("```"):
                 text = text.split("```")[1]
@@ -148,13 +234,25 @@ Return ONLY valid JSON (no markdown, no explanation):
             text = text.strip()
 
             data = json.loads(text)
-            return AssertionResult.from_dict(data)
+            result = AssertionResult.from_dict(data)
+            result.model_used = model_used
+            return result
         except (json.JSONDecodeError, AttributeError) as e:
-            return AssertionResult(
+            result = AssertionResult(
                 passed=False,
                 reason=f"Failed to parse AI response: {e}",
                 confidence=0.0,
             )
+            result.model_used = self.last_used_model
+            return result
+        except Exception as e:
+            result = AssertionResult(
+                passed=False,
+                reason=f"AI error: {str(e)[:100]}",
+                confidence=0.0,
+            )
+            result.model_used = self.last_used_model
+            return result
 
     def query(
         self,
@@ -175,14 +273,14 @@ QUESTION: {question}
 Give a concise, direct answer.
 """
 
-        response = self.model.generate_content(
-            [
+        try:
+            response, _ = self._generate_with_fallback([
                 prompt,
                 self._make_image_part(screenshot_b64),
-            ]
-        )
-
-        return response.text.strip()
+            ])
+            return response.text.strip()
+        except Exception as e:
+            return f"Error querying AI: {str(e)[:100]}"
 
     def discover_elements(
         self,
@@ -207,14 +305,12 @@ Return ONLY valid JSON array (no markdown):
 ]
 """
 
-        response = self.model.generate_content(
-            [
+        try:
+            response, _ = self._generate_with_fallback([
                 prompt,
                 self._make_image_part(screenshot_b64),
-            ]
-        )
+            ])
 
-        try:
             text = response.text.strip()
             if text.startswith("```"):
                 text = text.split("```")[1]
@@ -223,5 +319,5 @@ Return ONLY valid JSON array (no markdown):
             text = text.strip()
 
             return json.loads(text)
-        except (json.JSONDecodeError, AttributeError):
+        except (json.JSONDecodeError, AttributeError, Exception):
             return []

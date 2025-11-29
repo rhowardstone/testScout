@@ -484,9 +484,10 @@ Return JSON:
             action_type = next_action.get("action", "done")
             action_reason = next_action.get("reason", "")
 
-            # Record decision in audit
+            # Record decision in audit (including which AI model made the decision)
             if self.audit:
-                self.audit.record_decision(next_action, action_reason)
+                model_used = decision.get("_model_used")
+                self.audit.record_decision(next_action, action_reason, model_used=model_used)
 
             if action_type == "done":
                 self.report.ai_observations.append("AI decided exploration is complete")
@@ -741,8 +742,9 @@ Return JSON:
                 )
                 self.audit.record_ai_prompt(prompt)
 
-            # Ask AI with retry logic
+            # Ask AI with retry logic (using fallback method)
             last_error = None
+            model_used = None
             for attempt in range(max_retries):
                 try:
                     # On retry, add a reminder about JSON format
@@ -750,7 +752,8 @@ Return JSON:
                     if attempt > 0:
                         current_prompt = prompt + "\n\nIMPORTANT: Return ONLY valid JSON, no markdown, no explanation text."
 
-                    response = self.scout.backend.model.generate_content(
+                    # Use generate_raw which handles fallback to cheaper models
+                    raw_text, model_used = self.scout.backend.generate_raw(
                         [
                             current_prompt,
                             {"mime_type": "image/png", "data": screenshot_b64},
@@ -758,13 +761,13 @@ Return JSON:
                     )
 
                     # Check for empty response
-                    if not response.text or not response.text.strip():
+                    if not raw_text or not raw_text.strip():
                         last_error = "Empty response from AI"
                         time.sleep(0.5)  # Brief pause before retry
                         continue
 
                     # Parse response
-                    raw_text = response.text.strip()
+                    raw_text = raw_text.strip()
                     text = raw_text
 
                     # Handle markdown code blocks
@@ -789,6 +792,9 @@ Return JSON:
                     # Record AI response in audit
                     if self.audit:
                         self.audit.record_ai_response(raw_text, parsed)
+
+                    # Add model_used to the parsed response for tracking
+                    parsed["_model_used"] = model_used
 
                     return parsed
 
